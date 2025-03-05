@@ -132,9 +132,6 @@ with st.form("prediction_form"):
         Viscosity = gas.viscosity_gas()
         rho = gas.gas_density()
     
-    # Let the user define the range for Pwf values
-    pwf_min = st.number_input('Minimum Pwf (psi)', min_value=14.7, max_value=Pr, value=Pr-500.0)
-    
     submitted = st.form_submit_button("Predict")
 
 # -------------------------
@@ -153,8 +150,8 @@ if submitted:
         pca = pickle.load(f)
 
     with st.spinner("Predicting gas flow rate..."):
-        # Generate an array of Pwf values from Pr down to pwf_min (in steps of -50 psi)
-        Pwf_vals = np.arange(Pr, pwf_min - 1, -50)
+        # Generate an array of Pwf values from Pr down to AOF (in steps of -50 psi)
+        Pwf_vals = np.arange(Pr, 14.7 - 1, -50)
         
         # Build a DataFrame with repeated property values and varying Pwf values.
         df = pd.DataFrame({
@@ -188,7 +185,7 @@ if submitted:
     
     # Use st.metric to highlight the key result (e.g., the AOF predicted Qg)
     st.metric(
-        label="Predicted Gas Flow (Mscf/d)",
+        label="Predicted AOF Gas Flow (Mscf/d)",
         value=f"{df['Qg, Mscf/d'].iloc[-1]:.2f}",
         delta=f"{df['Qg, Mscf/d'].max() - df['Qg, Mscf/d'].iloc[-1]:.2f}"
     )
