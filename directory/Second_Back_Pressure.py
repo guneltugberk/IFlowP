@@ -1,6 +1,7 @@
 import streamlit as st
 import numpy as np
 import pandas as pd
+import pickle
 import time
 from directory.GasProperties import GasProperties  
 
@@ -139,6 +140,13 @@ with st.form("prediction_form"):
 # 7. Prediction & Output Display
 # -------------------------
 if submitted:
+    # Loading the scalers, PCA and PINN models
+    with open("scaler_pca.pkl", "rb") as f:
+        scaler_pca = pickle.load(f)
+
+    with open("pca.pkl", "rb") as f:
+        pca = pickle.load(f)
+
     with st.spinner("Predicting gas flow rate..."):
         # Generate an array of Pwf values from Pr down to pwf_min (in steps of -50 psi)
         Pwf_vals = np.arange(Pr, pwf_min - 1, -50)
@@ -151,12 +159,22 @@ if submitted:
             "Porosity, fraction": np.full(len(Pwf_vals), PHI),
             "h, ft": np.full(len(Pwf_vals), h),
             "SG": np.full(len(Pwf_vals), SG),
-            "Bg, stb/scf": np.full(len(Pwf_vals), Bg),
+            "Bg, bbl/scf": np.full(len(Pwf_vals), Bg),
             "Gas Viscosity, cp": np.full(len(Pwf_vals), Viscosity),
             "Gas Density, lb/ft3": np.full(len(Pwf_vals), rho),
             "Pwf, psi": Pwf_vals
         })
+
+        # Calling the features in the same order as given to the scaling model
+        features_pca = df[["Pr, psi", "Temperature, F", "k, md", "Porosity, fraction", "h, ft", "SG", "Bg, bbl/scf",
+                             "Gas Viscosity, cp", "Gas Density, lb/ft3"]].values
         
+        # Scaling the features before the PCA
+        features_pca_scaled = scaler_pca.fit_transform(features_pca)
+
+        # Transforming the dataset using fitted PCA
+        pca_data = pca.transform(features_pca_scaled)
+
         # Run prediction using the cached PINN model 
         df["Qg, Mscf/d"] = predict_flow(df)
         
