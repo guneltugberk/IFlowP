@@ -164,7 +164,7 @@ if submitted:
             "Porosity, fraction": np.full(len(Pwf_vals), PHI),
             "h, ft": np.full(len(Pwf_vals), h),
             "SG": np.full(len(Pwf_vals), SG),
-            "Bg, stb/scf": np.full(len(Pwf_vals), Bg),
+            "Bg, bbl/scf": np.full(len(Pwf_vals), Bg),
             "Gas Viscosity, cp": np.full(len(Pwf_vals), Viscosity),
             "Gas Density, lb/ft3": np.full(len(Pwf_vals), rho),
             "Pwf, psi": Pwf_vals
