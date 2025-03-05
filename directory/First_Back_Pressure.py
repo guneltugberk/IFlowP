@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import pickle
 import time
+import os
 from directory.GasProperties import GasProperties 
 
 # -------------------------
@@ -141,10 +142,14 @@ with st.form("prediction_form"):
 # -------------------------
 if submitted:
     # Loading the scalers, PCA and PINN models
-    with open("scaler_pca.pkl", "rb") as f:
+    base_dir = os.path.dirname(__file__)
+    scaler_pca_path = os.path.join(base_dir, "scaler_pca.pkl")
+    pca_path = os.path.join(base_dir, "pca.pkl")
+
+    with open(scaler_pca_path, "rb") as f:
         scaler_pca = pickle.load(f)
 
-    with open("pca.pkl", "rb") as f:
+    with open(pca_path, "rb") as f:
         pca = pickle.load(f)
 
     with st.spinner("Predicting gas flow rate..."):
