@@ -4,7 +4,7 @@ import pandas as pd
 import pickle
 import time
 import os
-from directory.GasProperties import GasProperties  
+from directory.GasProperties import GasProperties 
 
 # -------------------------
 # 1. Page Configuration & Theming
@@ -15,7 +15,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Custom CSS for styling
+# Custom CSS for styling 
 st.markdown(
     """
     <style>
@@ -71,13 +71,52 @@ st.markdown(
 st.markdown("<div class='stTitle'>Second Back Pressure IPR Prediction</div>", unsafe_allow_html=True)
 
 # -------------------------
-# 3. Caching: Load the PINN Model 
+# 3. Caching: Load the PCA Model and PINN
 # -------------------------
 @st.cache_resource
-def load_pinn_model():
+def load_pca_model():
+    # Call the pca scaler and pca
+    time.sleep(1)
+
+    base_dir = os.path.dirname(__file__)
+    scaler_pca_path = os.path.join(base_dir, "scaler_pca.pkl")
+    pca_path = os.path.join(base_dir, "pca.pkl")
+
+    # Load the pca scaling function
+    with open(scaler_pca_path, "rb") as f:
+        scaler_pca = pickle.load(f)
+
+    # Load the pca model
+    with open(pca_path, "rb") as f:
+        pca = pickle.load(f)
+
+    # Calling the features in the same order as given to the scaling model
+    features_pca = df[["Pr, psi", "Temperature, F", "k, md", "Porosity, fraction", "h, ft", "SG", "Bg, bbl/scf",
+                            "Gas Viscosity, cp", "Gas Density, lb/ft3"]].values
+    
+    # Scaling the features before the PCA
+    features_pca_scaled = scaler_pca.fit_transform(features_pca)
+
+    # Transforming the dataset using fitted PCA
+    pca_data = pca.transform(features_pca_scaled)
+
+    return pca_data
+
+@st.cache_resource
+def load_pinn_model(Pr, Pwf, SG, T):
     # Simulate a model load delay and return a dummy prediction function.
     time.sleep(1)
+
+    # Compute the real gas pseudo-pressure
+    real_gas = GasProperties(gamma=SG, Pressure=Pr, Temperature=T)
+    real_gas_pseudo_pressure = [real_gas.real_gas_pseudo_pressure(Pwf=p) for p in Pwf]
+    
     def dummy_predict(input_df):
+        # Prepare the flow rates
+        pwf = input_df['Pwf, psi'].values
+
+        # Prepare the model inputs
+
         # This please will be replaced by the actual model.
         return (input_df["Pr, psi"] - input_df["Pwf, psi"]) * 10
     return dummy_predict
@@ -91,18 +130,18 @@ with st.sidebar:
     st.header("About")
     st.markdown(
         """
-        This tool uses a PINN model optimized for the **second back pressure equation** to predict gas flow rate based on different Pwf values and reservoir properties.
+        This tool uses a PINN model optimized for the **first back pressure equation** to predict gas flow rate based on different Pwf values and reservoir properties.
         Adjust the inputs on the main page and click **Predict**.
         """
     )
 
 # -------------------------
-# 5. Toggle for PVT Data: Placed outside the form for immediate response
+# 5. Toggle for PVT Data
 # -------------------------
 pvt_available = st.toggle("PVT Data Available", value=False)
 
 # -------------------------
-# 6. Input Form: Grouping UI Widgets to Optimize Reruns
+# 6. Input Form
 # -------------------------
 with st.form("prediction_form"):
     st.subheader("Reservoir & Fluid Properties")
@@ -139,15 +178,6 @@ with st.form("prediction_form"):
 # -------------------------
 if submitted:
     # Loading the scalers, PCA and PINN models
-    base_dir = os.path.dirname(__file__)
-    scaler_pca_path = os.path.join(base_dir, "scaler_pca.pkl")
-    pca_path = os.path.join(base_dir, "pca.pkl")
-
-    with open(scaler_pca_path, "rb") as f:
-        scaler_pca = pickle.load(f)
-
-    with open(pca_path, "rb") as f:
-        pca = pickle.load(f)
 
     with st.spinner("Predicting gas flow rate..."):
         # Generate an array of Pwf values from Pr down to AOF (in steps of -50 psi)
@@ -166,21 +196,10 @@ if submitted:
             "Gas Density, lb/ft3": np.full(len(Pwf_vals), rho),
             "Pwf, psi": Pwf_vals
         })
-
-        # Calling the features in the same order as given to the scaling model
-        features_pca = df[["Pr, psi", "Temperature, F", "k, md", "Porosity, fraction", "h, ft", "SG", "Bg, bbl/scf",
-                             "Gas Viscosity, cp", "Gas Density, lb/ft3"]].values
         
-        # Scaling the features before the PCA
-        features_pca_scaled = scaler_pca.fit_transform(features_pca)
-
-        # Transforming the dataset using fitted PCA
-        pca_data = pca.transform(features_pca_scaled)
-
-        # Run prediction using the cached PINN model 
+        # Run prediction using the cached PINN model
         df["Qg, Mscf/d"] = predict_flow(df)
-        
-        time.sleep(1) 
+        time.sleep(1)  
 
     st.success("Prediction complete!")
     
