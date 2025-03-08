@@ -282,13 +282,13 @@ if submitted:
     with col2:
         st.metric(
             label="Predicted C",
-            value=f"{round(C_pred, 0)}"
+            value=f"{round(C_pred, 3)}"
         )
 
     with col3:
         st.metric(
             label="Predicted n",
-            value=f"{round(n_pred, 0)}"
+            value=f"{round(n_pred, 3)}"
         )
     
     # Show the results in a table and chart
