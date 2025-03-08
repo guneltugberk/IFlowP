@@ -8,12 +8,6 @@ def main():
         default=True
     )
 
-    extraction = st.Page(
-        page='directory/First_Back_Pressure.py',
-        title='First Back Pressure',
-        icon='⛑️'
-    )
-
     prediction = st.Page(
         page='directory/Second_Back_Pressure.py',
         title='Second Back Pressure',
@@ -23,7 +17,7 @@ def main():
     pg = st.navigation(
         {
             'Info': [about],
-            'Projects': [extraction, prediction]
+            'Projects': [prediction]
         }
     )
 
