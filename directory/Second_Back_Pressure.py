@@ -232,10 +232,18 @@ with st.form("prediction_form"):
 # 7. Prediction & Output Display
 # -------------------------
 if submitted:
-    with st.spinner("Predicting gas flow rate..."):
+    with st.status("In progress..", expanded=True) as status:
+        st.write("Validation...")
+        time.sleep(1)
+        st.write("Scaling the inputs...")
+        time.sleep(0.5)
+        st.write("Predicting...")
+        time.sleep(0.5)
+        status.update(label="Predicted!", state="complete", expanded=False)
+        
         # Create a DataFrame with one row per Pwf value (or however you wish to generate predictions)
         # For example, generate a range of Pwf values from Pr downwards:
-        Pwf_vals = np.arange(Pr, 14.7 - 1, -50)
+        Pwf_vals = np.arange(Pr, 14.7 - 1, -100)
         # Build the input DataFrame; note that all columns must be provided.
         input_df = pd.DataFrame({
             "Pr, psi": np.full(len(Pwf_vals), Pr),
