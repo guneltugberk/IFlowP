@@ -260,8 +260,6 @@ if submitted:
         
         # Use the prediction function
         Q_pred, C_pred, n_pred, dp = predict_flow(input_df)
-        st.write("C: ", C_pred)
-        st.write("n: ", n_pred)
         
         # Add predictions to your DataFrame for display
         input_df["Qg, Mscf/d"] = Q_pred / 1000
@@ -282,13 +280,13 @@ if submitted:
     with col2:
         st.metric(
             label="Predicted C",
-            value=f"{round(C_pred, 3)}"
+            value=f"{C_pred:.3f}"
         )
 
     with col3:
         st.metric(
             label="Predicted n",
-            value=f"{round(n_pred, 3)}"
+            value=f"{n_pred:.4f}"
         )
     
     # Show the results in a table and chart
