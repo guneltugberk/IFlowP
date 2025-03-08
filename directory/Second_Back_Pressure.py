@@ -240,7 +240,7 @@ if submitted:
         st.write("Predicting...")
         time.sleep(0.5)
         status.update(label="Predicted!", state="complete", expanded=False)
-        
+
         # Create a DataFrame with one row per Pwf value (or however you wish to generate predictions)
         # For example, generate a range of Pwf values from Pr downwards:
         Pwf_vals = np.arange(Pr, 14.7 - 1, -100)
@@ -271,11 +271,25 @@ if submitted:
 
     st.success("Prediction complete!")
     
-    # Display a key metric (for example, the prediction corresponding to the lowest Pwf)
-    st.metric(
-        label="Predicted AOF Gas Flow (Mscf/d)",
-        value=f"{round(input_df['Qg, Mscf/d'].iloc[-1], 0)}"
-    )
+    # Display a key metric AOF
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric(
+            label="Predicted AOF Gas Flow (Mscf/d)",
+            value=f"{round(input_df['Qg, Mscf/d'].iloc[-1], 0)}"
+        )
+    
+    with col2:
+        st.metric(
+            label="Predicted C",
+            value=f"{round(C_pred, 0)}"
+        )
+
+    with col3:
+        st.metric(
+            label="Predicted n",
+            value=f"{round(n_pred, 0)}"
+        )
     
     # Show the results in a table and chart
     st.dataframe(input_df)
