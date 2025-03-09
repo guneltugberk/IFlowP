@@ -169,6 +169,10 @@ st.markdown(
             <li>During the training, analytical simulation results have been used.</li>
             <li>Since the aim of the project is predicting the IPR curve for gas wells, the skin factor was excluded during the training. But the effect of skin factor was embeded into the training.</li>
             <li>For considerably high flow rates, the prediction could be quite erroneous.</li>
+            <li>It is only valid for single phae gas flow.</li>
+            <li>Forecasting is based on a single moment in time.</li>
+            <li>Reservoir pressure remains constant during depletion.</li>
+            <li>Fluid properties are defined at the initial reservoir pressure.</li>
         </ul>
         <br>
         <div class="stHeader">To contact us or the professors:</div>
