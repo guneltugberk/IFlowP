@@ -12,9 +12,9 @@ import plotly.graph_objects as go
 
 from directory.GasProperties import GasProperties 
 
-# -------------------------
+ # -----------------------------------------
 # 0. Page Configuration & Theming
-# -------------------------
+ # -----------------------------------------
 st.set_page_config(
     page_title="Back Pressure IPR Prediction",
     page_icon="⛽",
@@ -62,9 +62,9 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# -------------------------
+ # -----------------------------------------
 # 1. Logo & Title Display
-# -------------------------
+ # -----------------------------------------
 st.markdown(
     """
     <div class="logo-container">
@@ -76,9 +76,9 @@ st.markdown(
 
 st.markdown("<div class='stTitle'>Back Pressure IPR Prediction</div>", unsafe_allow_html=True)
 
-# -------------------------
+ # -----------------------------------------
 # 2. Model Architecture
-# -------------------------
+ # -----------------------------------------
 class GasFlowModel(nn.Module):
     def __init__(self, input_dim):
         super().__init__()
@@ -96,13 +96,14 @@ class GasFlowModel(nn.Module):
         x = F.relu(self.fc4(x))
 
         logC = self.output_logC(x)
-        # F.sigmoid is deprecated, so you could switch to torch.sigmoid; left as-is for consistency
+        
         n = F.sigmoid(self.output_n(x)) * 0.5 + 0.5  
+
         return logC, n
 
-# -------------------------
+ # -----------------------------------------
 # 3. Caching: Load the PCA Model and PINN
-# -------------------------
+ # -----------------------------------------
 @st.cache_resource
 def load_prediction_objects():
     base_dir = os.path.dirname(__file__)
@@ -174,9 +175,9 @@ def predict_flow(df):
     
     return Q_pred, C_pred[-1], n_pred[-1], dp_array
 
-# -------------------------
+ # -----------------------------------------
 # 4. Sidebar Information
-# -------------------------
+ # -----------------------------------------
 with st.sidebar:
     st.header("About")
     st.markdown(
@@ -192,14 +193,14 @@ with st.sidebar:
         """
     )
 
-# -------------------------------------------------
+ # -----------------------------------------
 # 5. Tabs for Input, Results, and Analysis
-# -------------------------------------------------
+ # -----------------------------------------
 tab1, tab2, tab3 = st.tabs(["Input", "Results & Confidence Interval", "Distribution"])
 
-# ------------------------------------
+ # -----------------------------------------
 # Tab 1: Input
-# ------------------------------------
+ # -----------------------------------------
 with tab1:
     st.subheader("Reservoir & Fluid Properties")
     pvt_available = st.toggle(
@@ -302,9 +303,9 @@ with tab1:
 
         st.success("Switch to 'Results & Confidence Interval' tab to see predictions.")
 
-# ------------------------------------
+ # -----------------------------------------
 # Tab 2: Results & Confidence Interval
-# ------------------------------------
+ # -----------------------------------------
 with tab2:
     st.subheader("Predicted Results with Confidence Interval")
 
@@ -337,7 +338,7 @@ with tab2:
         st.dataframe(df_pred)
 
         # Confidence interval plot
-        mae = 1086  # Known or estimated MAE
+        mae = 1086  # Estimated MAE for back pressure fitting
         Pwf_vals = df_pred["Pwf, psi"].tolist()
         Qg_vals  = df_pred["Qg, Mscf/d"].tolist()
 
@@ -355,7 +356,7 @@ with tab2:
             line=dict(color='blue', width=2)
         ))
 
-        # Upper bound (invisible trace)
+        # Upper bound
         fig.add_trace(go.Scatter(
             x=Qg_upper,
             y=Pwf_vals,
@@ -400,9 +401,9 @@ with tab2:
             mime="text/csv"
         )
 
-# ------------------------------------
-# Tab 3: Additional Visualization
-# ------------------------------------
+ # -----------------------------------------
+# Tab 3: Distribution Visualization
+ # -----------------------------------------
 with tab3:
     if "predicted_df" not in st.session_state:
         st.warning("No predictions yet. Please go to the 'Input' tab and click 'Predict'.")
@@ -410,9 +411,9 @@ with tab3:
     else:
         df_pred = st.session_state["predicted_df"]
 
-        # ---------------------------
+        # -----------------------------------------
         # 3.A Dynamic bin slider for Qg histogram
-        # ---------------------------
+         # -----------------------------------------
         st.write("### Distribution of Predicted Flow Rates")
         bin_count = st.slider("Number of bins", min_value=5, max_value=50, value=10, step=1)
         
