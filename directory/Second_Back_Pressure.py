@@ -16,7 +16,7 @@ from directory.GasProperties import GasProperties
 # 0. Page Configuration & Theming
 # -------------------------
 st.set_page_config(
-    page_title="Second Back Pressure IPR Prediction",
+    page_title="Back Pressure IPR Prediction",
     page_icon="⛽",
     layout="wide"
 )

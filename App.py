@@ -10,7 +10,7 @@ def main():
 
     prediction = st.Page(
         page='directory/Second_Back_Pressure.py',
-        title='Second Back Pressure',
+        title='Back Pressure',
         icon='💡'
     )
 
