@@ -135,15 +135,10 @@ $$
 The `GasProperties` class is the core of the module. It includes:
 
 - **Initialization (`__init__`):**  
-  Sets the gas specific gravity, calculates molecular weight, and determines pseudocritical properties using correlations (e.g.),  
-  $$ p_{pc} = 756.8 - 131\gamma - 3.6\gamma^2 $$  
-  and  
-  $$ T_{pc} = 169.2 + 349.5\gamma - 74\gamma^2 $$  
-   These correlations are common in reservoir engineering texts [1].
+  Sets the gas specific gravity, calculates molecular weight, and determines pseudocritical properties using Sutton's correlations as given in Key Equations 6. These correlations are common in reservoir engineering texts [1].
 
 - **z‑factor Calculation (`z_factor`):**  
-  Uses the Dranchuk–Abou-Kassem correlation. If the reservoir pressure and temperature fall outside the valid range, it falls back on the Beggs–Brill correlation [1].  
-  This step is critical since the z‑factor affects all subsequent calculations.
+  Uses the Dranchuk–Abou-Kassem correlation. If the reservoir pressure and temperature fall outside the valid range, it falls back on the Beggs–Brill correlation [1]. This step is critical since the z‑factor affects all subsequent calculations.
 
 - **Gas Formation Volume Factor (`Bg`):**  
   Calculates the gas formation volume factor with the equation:  
