@@ -35,7 +35,7 @@ Gas well deliverability forecasting is essential for planning and optimizing pro
 The back pressure equation, introduced by Rawlins et al., is used to estimate the gas flow rate \(\,Q_g\) as follows:
 
 $$
-Q_g = C \,\Bigl(\psi(P_r) - \psi(P_{wf})\Bigr)^n
+Q_g = C \\Bigl(\psi(P_r) - \psi(P_{wf})\Bigr)^n
 $$
 
 - **\(C\)**: Deliverability coefficient  
