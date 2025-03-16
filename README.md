@@ -1,224 +1,213 @@
-# IFlowP IPR Prediction and Construction
 
-This Python project implements a series of reservoir engineering correlations to compute various gas properties and gas well flow rates. The code is designed to evaluate the gas compressibility factor (z‑factor), formation volume factor (Bg), gas density, viscosity, and ultimately the gas flow rate (Qg) through a reservoir using both Darcy and non‑Darcy (turbulent) flow correlations.
+# Gas Well Deliverability Forecasting using a Physics-Informed Neural Network (PINN)
 
-The methods implemented here are based on well‑established correlations in reservoir engineering such as the Dranchuk–Abou-Kassem correlation for z‑factor, the Beggs–Brill correlation as a fallback, and flow equations commonly found in gas well performance analyses.
-
-These results are then used to feed the PINN algorithm for Back Pressure Equation defined by Rawlins et. all [2]. This equation was firstly developed in 1935, and it was based on emprical observations from the gas wells in the United States. In our project, it was aimed to fine tune the coefficient of the Back Pressure equation. 
+This repository contains a comprehensive project that aims to forecast gas well deliverability without relying on expensive well tests or advanced proprietary software. Instead, we develop a proxy model based on a Physics Informed Neural Network (PINN) that integrates empirical gas flow equations with data-driven modeling. The project emphasizes key concepts such as back pressure, log normalization, model architecture, and detailed result evaluation.
 
 ---
 
 ## Table of Contents
 
-- [Project Overview](#project-overview)
-- [Installation and Dependencies](#installation-and-dependencies)
-- [Usage](#usage)
-- [Project Structure and Code Explanation](#project-structure-and-code-explanation)
-  - [GasProperties Class](#gasproperties-class)
-  - [GasFlow Class](#gasflow-class)
-- [Key Equations and Their References](#key-equations-and-their-references)
-- [Bibliography](#bibliography)
+- [Introduction](#introduction)  
+- [Equations and Theoretical Background](#equations-and-theoretical-background)  
+- [Data Preprocessing and Log Normalization](#data-preprocessing-and-log-normalization)  
+- [Feature Analysis and Importance](#feature-analysis-and-importance)  
+- [Principal Component Analysis (PCA)](#principal-component-analysis-pca)  
+- [PINN Model Building](#pinn-model-building)  
+  - [Model Architecture](#model-architecture)  
+  - [Physics-Informed Loss Function](#physics-informed-loss-function)  
+  - [Training with LBFGS Optimizer](#training-with-lbfgs-optimizer)  
+- [Results and Discussion](#results-and-discussion)  
+- [Future Work and Next Steps](#future-work-and-next-steps)  
+- [References](#references)  
 
 ---
 
-## Project Overview
+## Introduction
 
-This project is intended for reservoir engineers and students interested in understanding gas behavior in reservoirs. The code performs the following tasks:
-
-- **Initialization and Validation:** The `GasProperties` class sets up the basic gas properties based on the specific gravity (γ), pressure, and temperature. It validates that the specific gravity lies within acceptable limits.
-- **Gas Property Calculations:** Using established correlations, the code calculates:
-  - The gas molecular weight and pseudocritical properties.
-  - The z‑factor using the Dranchuk–Abou-Kassem correlation (with a fallback to the Beggs–Brill method if conditions are out of range).
-  - The gas formation volume factor (Bg) based on pressure, temperature, and z‑factor.
-  - Gas density and viscosity using correlations (e.g., Lee’s method).
-- **Flow Rate Determination:** The `GasFlow` class extends `GasProperties` and includes methods to:
-  - Update the flowing bottom‑hole pressure.
-  - Compute the real‑gas pseudo-pressure difference by integrating the function  
-    $$\Delta \psi=\int_{P_{wf}}^{P_{res}}\frac{2p}{\mu_g\,z}\,dp $$  
-    which is a core part of the gas flow rate calculation [1].
-  - Determine the single‑phase gas flow rate (Qg) using both Darcy (linear) and turbulent (non‑Darcy) flow equations. For example, the Darcy flow rate is approximated as:  
-    $$ Q_g = \frac{k\,h\,\Delta \psi}{1422\,T\left(\ln\left(\frac{r_e}{r_w}\right)-0.75+s\right)} $$  
-    where $$\Delta \psi$$ is the pseudo‑pressure difference [3].
+Gas well deliverability forecasting is essential for planning and optimizing production. Traditional methods involve empirical correlations derived from well testing. However, these tests can be time-consuming and expensive. In this project, we develop a PINN that predicts the deliverability coefficients by leveraging both the underlying physics and an extensive dataset containing reservoir and fluid properties (e.g., porosity, permeability, gas formation volume factor). The model is designed to adhere to physical constraints, ensuring its predictions remain physically interpretable.
 
 ---
 
-## Installation and Dependencies
+## Equation and Theoretical Background
 
-This project requires Python 3 and the following Python libraries:
-- **math** – For basic mathematical operations.
-- **scipy** – Specifically, `fsolve` (from `scipy.optimize`) for solving non‑linear equations and `quad` (from `scipy.integrate`) for numerical integration.
+### Back Pressure Equation (Equation 1)
 
-To install SciPy (if not already installed), run:
+The back pressure equation, introduced by Rawlins et al., is used to estimate the gas flow rate \(\,Q_g\) as follows:
 
-```bash
-pip install scipy
-```
+$$
+Q_g = C \,\Bigl(\psi(P_r) - \psi(P_{wf})\Bigr)^n
+$$
+
+- **\(C\)**: Deliverability coefficient  
+- **\(n\)**: Flow exponent  
+- **\(\psi(P)\)**: A function that captures the pseudo-pressure term   
+
+*The equations rely on constant coefficients typically derived from well testing. Since these tests may not always be feasible, our approach uses a PINN to predict these coefficients.*
 
 ---
 
-## Usage
+## Data Preprocessing and Log Normalization
 
-1. **Importing the Module:**  
-   You can import the module in your Python script:
-   ```python
-   from gas_flow_module import GasProperties, GasFlow
-   ```
+### Why and How?
 
-2. **Creating an Object:**  
-   For example, to calculate gas properties:
-   ```python
-   # Initialize with specific gravity, reservoir pressure, and temperature.
-   gp = GasProperties(gamma=0.65, Pressure=3000, Temperature=150)
-   ```
+- **Rationale:**  
+  The original dataset includes measurements like gas flow rate (\(Q_g\)) and pressure drop (\(\Delta P\)). However, to better linearize the underlying physics (as seen in Equation 1), we apply a log transformation to these variables. This **log normalization** helps in stabilizing variance, reducing skewness, and highlighting multiplicative relationships.
 
-3. **Calculating the z‑factor and Formation Volume Factor:**  
-   ```python
-   z = gp.z_factor()
-   Bg = gp.Bg()
-   ```
-#### Beggs & Brill Fallback
+- **Implementation:**  
+  1. **Data Cleaning:** Rows with zero values in critical columns (`"Qg, mscf/d"` and `"Delta_P"`) are dropped to avoid issues in logarithmic transformation.  
+  2. **Log Transformation:** We compute \(\log_{10}\) for both \(\Delta P\) and the gas flow rate \(Q_g\) (scaled appropriately) and store these in new columns (`Log_DP` and `Log_q`).
 
-Uses the formula:
+- **Observation:**  
+  Post-normalization, the data distributions become more symmetric and are better suited for regression modeling.
 
-$$
-z = A + \frac{(1 - A)}{\exp(B)} + C \, (P_{pr})^D
-$$
-
-with constants \(A\), \(B\), \(C\), and \(D\) as coorelation coeficient.  
-**Reference:** Also detailed in [1].
-
-
-4. **Flow Rate Calculation:**  
-   To calculate the gas flow rate, create a `GasFlow` object (which requires a flowing bottom‑hole pressure `Pwf`) and then call:
-   ```python
-   gf = GasFlow(gamma=0.65, Pressure=3000, Temperature=150, Pwf=2500)
-   flow_rate = gf.gas_flow_rate(k=50, h=10, re=1000, rw=0.3, skin=0, phi=0.15, turbulant='Yes')
-   ```
-#### Lee et al. Gas Viscosity
-
-The `viscosity_gas()` function uses:
-
-$$
-\mu_g = K \, \exp\!\Bigl(x \,\rho^y \Bigr)
-$$
-
-where \rho is the gas density at reservoir conditions, and \(K\), \(x\), \(y\) are correlation parameters.  
-**Reference:** [1].
-
-#### Non-Darcy (Turbulent) Flow Coefficients
-
-When `turbulant='Yes'`, a rate-dependent skin term is included. For example:
-
-$$
-\beta = \frac{4.85 \times 10^4}{\phi^{5.5} \sqrt{k}} \quad \text{[3]}
-$$
-
-$$
-D = \left(\frac{2.22 \times 10^{-15} \,\gamma_g}{\mu_g \, r_w \, h}\right)\,\beta\,k \quad \text{[3]} 
-$$
-
-**Reference:** These equations are found in [3].
-
-5. **Updating Pressure or Pwf:**  
-   Use the `update_pres(new_pr)` and `update_pwf(new_pwf)` methods to update reservoir and bottom‑hole pressures without re‑instantiating the objects.
- 
-6. **Condition**  
- If Dranchuk & Abou-Kassem equation did not converge the code will be automatically using Beggs & Brill 
-
+- **Next Steps:**  
+  Proceed with creating copies for analysis and visualizing the relationships (e.g., scatter plots of flow rate versus bottomhole pressure and histogram distributions).
 
 ---
 
-## Project Structure and Code Explanation
+## Feature Analysis and Importance
 
-### GasProperties Class
+### Objectives
 
-The `GasProperties` class is the core of the module. It includes:
+- **Understand Influences:**  
+  Determine how each feature affects the gas flow rate.
 
-- **Initialization (`__init__`):**  
-  Sets the gas specific gravity, calculates molecular weight, and determines pseudocritical properties using Sutton's correlations as given in Key Equations 6. These correlations are common in reservoir engineering texts [1].
+- **Methods Used:**  
+  - **Correlation Analysis:** A heatmap is generated to visualize pairwise correlations between features.  
+  - **Lasso Regression:** Lasso is used for feature selection by imposing regularization, allowing us to rank features by importance.  
+  - **ANOVA Test:** Selects the best predictors using statistical tests to rank features.
 
-- **z‑factor Calculation (`z_factor`):**  
-  Uses the Dranchuk–Abou-Kassem correlation. If the reservoir pressure and temperature fall outside the valid range, it falls back on the Beggs–Brill correlation [1]. This step is critical since the z‑factor affects all subsequent calculations.
+### Why
 
-- **Gas Formation Volume Factor (`Bg`):**  
-  Calculates the gas formation volume factor with the equation:  
-  $$ Bg = 0.005035\,\frac{z\,T_{rankine}}{P} $$  
-  which reflects the relationship between pressure, temperature, and gas compressibility [1].
+- **Rationale:**  
+  By identifying the most influential features, we ensure that the model uses data that provide the most signal about gas flow behavior. This is particularly important because parameters like skin and drainage radius (\(R_e\), ft) are omitted to emulate a pre-test environment.
 
-- **Density and Viscosity:**  
-  - The `_density_gas_lee` and `gas_density` methods compute gas density using standard correlations.
-  - The `viscosity_gas` method calculates gas viscosity through an exponential function of density (Lee’s correlation), which is common in petrophysical evaluations [1].
+- **Observation:**  
+  The analysis reveals that key features (such as permeability \(\,k\), pressure drop \(\,DP\), and thickness \(\,h\)) are highly correlated with gas flow rate as expected.
 
-- **Real-Gas Pseudo‑Pressure (`real_gas_pseudo_pressure`):**  
-  This method numerically integrates the function:  
-  $$\Delta \psi=\int_{P_{wf}}^{P_{res}}\frac{2p}{\mu_g\,z}\,dp $$  
-  to obtain the pseudo‑pressure difference used in flow rate calculations [1].
-
-### GasFlow Class
-
-The `GasFlow` class inherits from `GasProperties` and adds functionality to compute the gas flow rate:
-
-- **Initialization:**  
-  In addition to the properties inherited from `GasProperties`, it requires the flowing bottom‑hole pressure (`Pwf`).
-
-- **Flow Rate Calculation (`gas_flow_rate`):**  
-  This method computes the gas flow rate \( Q_g \) in MSCF/D. It performs the following steps:
-  - **Pseudo‑Pressure Difference:**  
-    Determines the difference in real‑gas pseudo‑pressure between the reservoir and the bottom‑hole.
-  - **Darcy Flow (Linear Flow):**  
-    For laminar (Darcy) flow, the rate is calculated as:  
-    $$ Q_g = \frac{k\,h\,\Delta \psi}{1422\,T\left(\ln\left(\frac{r_e}{r_w}\right)-0.75+s\right)} \quad \text{[3]}  $$  
-    which follows standard gas well performance equations.
-  - **Non‑Darcy (Turbulent) Flow:**  
-    When turbulent flow is indicated (by the `turbulant` flag), the code introduces an additional coefficient based on the Beta correlation (see Eq. 7.116b in [3]) and solves a quadratic equation to account for the non‑Darcy behavior.
-
-
-$$
-\beta = \frac{4.85 \times 10^4}{\phi^{5.5} \sqrt{k}} \quad \text{[3]}
-$$
-
-$$
-D = \left(\frac{2.22 \times 10^{-15} \,\gamma_g}{\mu_g \, r_w \, h}\right)\,\beta\,k \quad \text{[3]} 
-$$
-
-$$ 
-Q_g = \frac{k\,h\,\Delta \psi}{1422\,T\left(\ln\left(\frac{r_e}{r_w}\right)-0.75+s + DQ_g\right)} \quad \text{[3]} 
-$$ 
-
-
-- **Pressure Update Methods:**  
-  The class also includes methods to update the bottom‑hole pressure (`update_pwf`), ensuring flexibility during simulation.
+- **Next Steps:**  
+  Use the insights from the feature ranking to select all available data (except those not available before well testing, such as skin and drainage radius) to train the predictive model.
 
 ---
 
-## Key Equations and Their References
+## Principal Component Analysis (PCA)
 
-1. **Real‑Gas Pseudo‑Pressure Integration:**  
-   $$ m(p)=\int_{P_{wf}}^{P_{res}}\frac{2p}{\mu_g\,z}\,dp \quad \text{[1]} $$
+### Why and How?
 
-2. **Gas Formation Volume Factor:**  
-   $$ Bg = 0.005035\,\frac{z\,T_{rankine}}{P} \quad \text{[1]} $$
+- **Rationale:**  
+  With many potentially correlated features, PCA reduces dimensionality by transforming the data into a set of uncorrelated principal components. This simplifies the modeling task while retaining most of the variance.
 
-3. **Darcy Flow Rate for Gas Wells:**  
-   $$ Q_g = \frac{k\,h\,\Delta \psi}{1422\,T\left(\ln\left(\frac{r_e}{r_w}\right)-0.75+s\right)} \quad \text{[3]} $$
+- **Implementation:**  
+  1. **Scaling:** Data is standardized using `StandardScaler`.  
+  2. **PCA Transformation:** PCA is applied to capture 95th percentile of the variance, and the resulting principal components are saved for further modeling.  
+  3. **Visualization:**  
+     - A bar chart displays the percentage of variance explained by each component.  
+     - Loadings plots show the contribution of original features to each principal component.  
+     - A cumulative variance plot illustrates how many components are needed to capture the majority of the data variance.
 
-4. **Non-Darcy Flow Rate for Gas Wells:**
-  $$ Q_g = \frac{k\,h\,\Delta \psi}{1422\,T\left(\ln\left(\frac{r_e}{r_w}\right)-0.75+s + DQ_g\right)} \quad \text{[3]} $$ 
-  
-5. **Pseudocritical Properties:**  
-   $$ p_{pc} = 756.8 - 131\gamma - 3.6\gamma^2 \quad \text{[1]} $$  
-   $$ T_{pc} = 169.2 + 349.5\gamma - 74\gamma^2 \quad \text{[1]} $$
+- **Observation:**  
+  The first principal component (PC1) typically explains the most variance, and the loadings help us interpret the physical meaning (e.g., fluid properties vs. petrophysical parameters).
 
-6. **Back Pressure Equation:**
-  $$ Q_g = C \bigl(\psi(P_r) - \psi(P_{wf})\bigr)^n \quad \text{[3]} $$
-
-These equations form the backbone of the module’s calculations and are directly referenced from standard gas reservoir engineering texts.
+- **Next Steps:**  
+  The transformed data from PCA is used as input for the PINN model.
 
 ---
 
-## Bibliography
+## PINN Model Building
 
-1. Ahmed, T. (2001). *Reservoir Engineering Handbook*. Butterworth-Heinemann.
-2. Rawlins, E.L. and Schellhardt, M.A. 1935. Backpressure Data on Natural Gas Wells and Their Application to Production Practices, 7. Monograph Series, U.S. Bureau of Mines.
-3. Tiab, D., & Donaldson, E. C. (2004). *Petrophysics: Theory and Practice of Measuring Reservoir Rock and Fluid Transport Properties* (2nd ed.). Elsevier.
+### Model Architecture
+
+- **Rationale:**  
+  Instead of traditional empirical methods, a PINN offers a flexible and robust way to combine domain knowledge with deep learning. It allows us to predict key parameters such as **logC** and **n** (or alternatively, **a** and **b**) while enforcing the physics of gas flow.
+
+- **Structure:**  
+  - **Layers:** Four fully-connected layers with ReLU activation functions are used to capture non-linear relationships.  
+  - **Outputs:**  
+    - `output_logC`: Represents log_{10}(C), with no activation constraint.  
+    - `output_n`: Represents the flow exponent \(n\), constrained to lie within a physically plausible range (transformed with a sigmoid function scaled to \([0.5, 5]\)).
+
+- **Observation:**  
+  The architecture is designed to balance complexity and interpretability, ensuring the outputs can be mapped back to physically meaningful parameters.
+
+### Physics-Informed Loss Function
+
+- **Why:**  
+  Standard loss functions may not capture the underlying physics. The custom **physics_loss** compares the predicted log flow rate with a formulation derived from the physics (Equation 1 or 2), ensuring the network’s outputs remain consistent with known physical laws.
+
+- **How:**  
+  1. The network predicts log(C) and n.  
+  2. The predicted gas flow rate is computed as:
+
+  $$
+  \log\bigl(q_{\text{pred}}\bigr) \;=\; \log(C) \;+\; n \,\times\, \log(\Delta P)
+  $$
+
+  3. A weighted mean squared error is computed, where the weights help stabilize training over different scales.
+
+### Training with LBFGS Optimizer
+
+- **Why LBFGS:**  
+  LBFGS is a quasi-Newton method that uses second-order information to provide stable and informed parameter updates. It is particularly effective in full-batch scenarios and for loss landscapes governed by strong physical constraints.
+
+- **How:**  
+  1. Random seeds are fixed for reproducibility.  
+  2. The training data (including PCA-transformed features and log-transformed targets) is scaled and split into training and testing sets.  
+  3. The LBFGS optimizer is used with a closure function that:  
+     - Sets the model to training mode.  
+     - Computes the physics-informed loss.  
+     - Performs backpropagation.  
+  4. The training progress is logged over multiple epochs, and both training and testing losses are plotted for further analysis.
+
+- **Observation:**  
+  The loss curves (both overall and for epochs after the initial burn-in period) provide insights into convergence and potential overfitting issues.
+
+- **Next Steps:**  
+  After training, evaluate the model on both training and testing sets using various performance metrics.
+
 ---
+
+## Results and Discussion
+
+### Key Observations
+
+1. **Error Metrics:**  
+   - Metrics such as MSE, RMSE, MAE, and R² demonstrate that the PINN accurately captures the gas flow behavior.  
+   - A high R² and low residual errors indicate that the model explains most of the variance in the data.
+
+2. **Residual Analysis:**  
+   - Residual plots for both training and testing data show random scatter around zero, with no systematic bias. This suggests the model generalizes well.  
+   - Histograms of residuals reveal near-normal distributions, confirming that the errors are mostly small and random.
+
+3. **Physical Consistency (Back Pressure):**  
+   - The model's predictions obey the expected behavior: when pressure drawdown is near zero, the predicted flow rate is negligible.  
+   - As pressure drawdown increases, the flow rate increases in a smooth, monotonic fashion-consistent with the Back Pressure Equation and gas flow physics.
+
+4. **Parameter Interpretability:**  
+   - The learned deliverability exponent \(n\) and coefficient \(C\) are in line with theoretical expectations.  
+   - These outputs not only fit the data well but also provide meaningful physical insights, reinforcing the reliability of the model.
+
+### Discussion
+
+The PINN approach successfully combines data-driven learning with physics-based constraints. This hybrid strategy prevents the network from learning non-physical solutions and provides outputs that are directly interpretable in terms of known gas flow equations. While the model performs very well within the range of observed data, caution is advised when extrapolating to extreme conditions.
+
+---
+
+## Future Work and Next Steps
+
+- **Hyperparameter Tuning:**  
+  Further tuning of the neural network architecture and training parameters may yield even better performance.
+
+- **Data Augmentation:**  
+  Incorporating additional datasets or simulating different reservoir conditions can help improve generalizability.
+
+- **Real-World Validation:**  
+  Applying the model to new well data and comparing with real-time production figures will validate its robustness and practical utility.
+
+- **Comples Cases:**  
+  Consider integrating the relative permeability effects to account for the phase fluid flow.
+
+---
+
+## References
+
+- Rawlins, E.L. and Schellhardt, M.A. 1935. Backpressure Data on Natural Gas Wells and Their Application to Production Practices, 7. Monograph Series, U.S. Bureau of Mines.
