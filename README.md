@@ -1,4 +1,3 @@
-
 # Gas Well Deliverability Forecasting using a Physics-Informed Neural Network (PINN)
 
 This repository contains a comprehensive project that aims to forecast gas well deliverability without relying on expensive well tests or advanced proprietary software. Instead, we develop a proxy model based on a Physics Informed Neural Network (PINN) that integrates empirical gas flow equations with data-driven modeling. The project emphasizes key concepts such as back pressure, log normalization, model architecture, and detailed result evaluation.
